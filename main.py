@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -22,7 +23,8 @@ st.markdown(
     """
     **1년 동안의 일별 박스오피스 데이터를 이용해 영화의 시간에 따른 변화를 살펴봅니다.**
 
-    영화를 선택하면 날짜별 일관객 변화를 그래프로 확인할 수 있습니다.
+    영화를 선택하면 날짜별 일관객 변화를 확인하고,
+    기간 전체에서 관객이 많았던 영화들의 변화를 비교할 수 있습니다.
     """
 )
 
@@ -76,7 +78,7 @@ def load_data():
 try:
     df = load_data()
 
-except Exception as e:
+except Exception:
     st.error("데이터를 불러오는 중 문제가 발생했습니다.")
     st.info("인터넷 연결과 데이터 주소를 확인해 주세요.")
     st.stop()
@@ -89,21 +91,18 @@ with st.expander("📊 데이터 정보", expanded=False):
     st.write("**데이터 출처**")
     st.code(DATA_URL)
 
-    st.write(
-        f"전체 데이터: **{len(df):,}개 행**"
-    )
+    st.write(f"전체 데이터: **{len(df):,}개 행**")
 
-    if "날짜" in df.columns:
-        valid_dates = df["날짜"].dropna()
+    valid_dates = df["날짜"].dropna()
 
-        if len(valid_dates) > 0:
-            st.write(
-                f"데이터 기간: "
-                f"**{valid_dates.min().strftime('%Y-%m-%d')} ~ "
-                f"{valid_dates.max().strftime('%Y-%m-%d')}**"
-            )
+    if len(valid_dates) > 0:
+        st.write(
+            f"데이터 기간: "
+            f"**{valid_dates.min().strftime('%Y-%m-%d')} ~ "
+            f"{valid_dates.max().strftime('%Y-%m-%d')}**"
+        )
 
-    st.write("**주요 열**")
+    st.write("**열(컬럼)**")
     st.write(
         "날짜 · 순위 · 영화코드 · 영화명 · 일관객 · "
         "누적관객 · 스크린수 · 상영횟수"
@@ -123,7 +122,6 @@ st.write(
 )
 
 
-# 영화 목록
 movie_list = (
     df["영화명"]
     .dropna()
@@ -145,28 +143,22 @@ selected_movie = st.selectbox(
 )
 
 
-# 선택한 영화 데이터
 movie_df = df[
     df["영화명"].astype(str) == selected_movie
 ].copy()
 
 movie_df = movie_df.sort_values("날짜")
 
-
-# 날짜와 일관객이 모두 있는 데이터만 사용
 movie_df = movie_df.dropna(
     subset=["날짜", "일관객"]
 )
 
 
 if len(movie_df) == 0:
-    st.warning(
-        "선택한 영화의 날짜별 관객 데이터가 없습니다."
-    )
+    st.warning("선택한 영화의 날짜별 관객 데이터가 없습니다.")
 
 else:
-    # Plotly 선 그래프
-    fig = px.line(
+    fig1 = px.line(
         movie_df,
         x="날짜",
         y="일관객",
@@ -178,8 +170,8 @@ else:
         }
     )
 
-    # 마우스를 올렸을 때 날짜와 관객수가 표시되도록 설정
-    fig.update_traces(
+    # 마우스를 올리면 날짜와 관객수 표시
+    fig1.update_traces(
         hovertemplate=(
             "날짜: %{x|%Y-%m-%d}<br>"
             "일관객: %{y:,.0f}명"
@@ -187,7 +179,7 @@ else:
         )
     )
 
-    fig.update_layout(
+    fig1.update_layout(
         hovermode="x unified",
         height=500,
         xaxis=dict(
@@ -205,7 +197,7 @@ else:
     )
 
     st.plotly_chart(
-        fig,
+        fig1,
         use_container_width=True
     )
 
@@ -227,7 +219,7 @@ st.markdown(
             💡 이 그래프로 알 수 있는 것
         </h4>
         <p style="margin: 0; color: #555;">
-            "주말에 관객수가 평일대비 5배이상 많다"
+            여기에 이 그래프를 통해 알 수 있는 내용을 한 문장으로 적어 주세요.
         </p>
     </div>
     """,
@@ -236,16 +228,125 @@ st.markdown(
 
 
 # ==================================================
-# 그래프 2 - 앞으로 추가할 영역
+# 그래프 2
 # ==================================================
 st.divider()
 
-st.header("2️⃣ 두 번째 그래프")
+st.header("2️⃣ 일관객 합계가 가장 큰 영화 5편 비교")
 
-st.info(
-    "여기에 앞으로 두 번째 그래프를 추가할 수 있습니다."
+st.write(
+    "이 기간 동안의 **일관객 합계가 가장 큰 5편**을 골라 "
+    "날짜별 일관객 변화를 한 그래프에서 비교합니다."
 )
 
+
+# --------------------------------------------------
+# 일관객 합계 기준 TOP 5 영화 계산
+# --------------------------------------------------
+movie_total = (
+    df.dropna(subset=["영화명", "일관객"])
+    .groupby("영화명", as_index=False)["일관객"]
+    .sum()
+    .sort_values("일관객", ascending=False)
+    .head(5)
+)
+
+top5_movies = movie_total["영화명"].tolist()
+
+
+# TOP 5 영화만 추출
+top5_df = df[
+    df["영화명"].isin(top5_movies)
+].copy()
+
+top5_df = top5_df.dropna(
+    subset=["날짜", "일관객"]
+)
+
+top5_df = top5_df.sort_values(
+    ["날짜", "영화명"]
+)
+
+
+if len(top5_df) == 0:
+    st.warning("비교할 영화 데이터가 없습니다.")
+
+else:
+    # 여러 영화를 하나의 선 그래프로 표시
+    fig2 = px.line(
+        top5_df,
+        x="날짜",
+        y="일관객",
+        color="영화명",
+        markers=True,
+        title="일관객 합계 TOP 5 영화의 날짜별 일관객 변화",
+        labels={
+            "날짜": "날짜",
+            "일관객": "일관객 (명)",
+            "영화명": "영화"
+        }
+    )
+
+    # 마우스를 올렸을 때 날짜·영화명·관객수 표시
+    fig2.update_traces(
+        hovertemplate=(
+            "날짜: %{x|%Y-%m-%d}<br>"
+            "일관객: %{y:,.0f}명"
+            "<extra>%{fullData.name}</extra>"
+        )
+    )
+
+    fig2.update_layout(
+        height=600,
+        hovermode="x unified",
+        xaxis=dict(
+            tickformat="%Y-%m-%d"
+        ),
+        yaxis=dict(
+            tickformat=",",
+            title="일관객 (명)"
+        ),
+        legend=dict(
+            title="영화",
+            itemclick="toggle",
+            itemdoubleclick="toggleothers"
+        ),
+        margin=dict(
+            l=20,
+            r=20,
+            t=60,
+            b=20
+        )
+    )
+
+    st.plotly_chart(
+        fig2,
+        use_container_width=True
+    )
+
+
+# --------------------------------------------------
+# TOP 5 영화의 일관객 합계도 표시
+# --------------------------------------------------
+st.markdown("#### 📌 그래프에 사용된 영화")
+
+display_total = movie_total.copy()
+display_total["일관객"] = display_total["일관객"].map(
+    lambda x: f"{x:,.0f}명"
+)
+
+display_total.columns = ["영화명", "기간 일관객 합계"]
+
+st.dataframe(
+    display_total,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# --------------------------------------------------
+# 그래프 2 해석 문구
+# --------------------------------------------------
 st.markdown(
     """
     <div style="
@@ -260,7 +361,7 @@ st.markdown(
             💡 이 그래프로 알 수 있는 것
         </h4>
         <p style="margin: 0; color: #555;">
-            여기에 두 번째 그래프에서 알 수 있는 내용을 적어 주세요.
+            여기에 다섯 영화의 날짜별 관객 변화와 영화별 흥행 흐름을 비교한 내용을 한 문장으로 적어 주세요.
         </p>
     </div>
     """,
