@@ -25,7 +25,7 @@ st.markdown(
     **1년 동안의 일별 박스오피스 데이터를 이용해 영화의 시간에 따른 변화를 살펴봅니다.**
 
     개별 영화의 관객 변화부터 인기 영화 비교,
-    전체 영화 관객 흐름까지 여러 그래프로 확인합니다.
+    전체 영화 관객 흐름과 월·요일별 관객 분포까지 확인합니다.
     """
 )
 
@@ -47,19 +47,15 @@ def load_data():
 
     df = pd.read_csv(DATA_URL)
 
-    # --------------------------------------------------
-    # 날짜를 진짜 날짜 형식으로 변환
+    # 날짜를 실제 날짜 형식으로 변환
     # 예: 20260101 → 2026-01-01
-    # --------------------------------------------------
     df["날짜"] = pd.to_datetime(
         df["날짜"].astype(str),
         format="%Y%m%d",
         errors="coerce"
     )
 
-    # --------------------------------------------------
     # 숫자형 열 변환
-    # --------------------------------------------------
     numeric_columns = [
         "순위",
         "영화코드",
@@ -88,7 +84,7 @@ def load_data():
 try:
     df = load_data()
 
-except Exception as e:
+except Exception:
     st.error("데이터를 불러오는 중 문제가 발생했습니다.")
     st.info("인터넷 연결과 데이터 주소를 확인해 주세요.")
     st.stop()
@@ -111,8 +107,8 @@ with st.expander("📊 데이터 정보", expanded=False):
     if len(valid_dates) > 0:
 
         st.write(
-            f"데이터 기간: "
-            f"**{valid_dates.min().strftime('%Y-%m-%d')} ~ "
+            f"데이터 기간: **"
+            f"{valid_dates.min().strftime('%Y-%m-%d')} ~ "
             f"{valid_dates.max().strftime('%Y-%m-%d')}**"
         )
 
@@ -152,10 +148,7 @@ movie_list = (
 
 if len(movie_list) == 0:
 
-    st.warning(
-        "선택할 수 있는 영화 데이터가 없습니다."
-    )
-
+    st.warning("선택할 수 있는 영화 데이터가 없습니다.")
     st.stop()
 
 
@@ -190,9 +183,6 @@ if len(movie_df) == 0:
 
 else:
 
-    # --------------------------------------------------
-    # 선 그래프
-    # --------------------------------------------------
     fig1 = px.line(
         movie_df,
         x="날짜",
@@ -205,7 +195,6 @@ else:
         }
     )
 
-    # 마우스를 올렸을 때 표시
     fig1.update_traces(
         hovertemplate=(
             "날짜: %{x|%Y-%m-%d}<br>"
@@ -255,7 +244,7 @@ st.markdown(
         </h4>
 
         <p style="margin:0; color:#555;">
-            여기에 이 그래프를 통해 알 수 있는 내용을 한 문장으로 적어 주세요.
+            선택한 영화의 날짜별 관객 변화를 확인하고 관객이 증가하거나 감소한 시기를 파악할 수 있습니다.
         </p>
     </div>
     """,
@@ -283,7 +272,10 @@ movie_total = (
     df.dropna(
         subset=["영화명", "일관객"]
     )
-    .groupby("영화명", as_index=False)["일관객"]
+    .groupby(
+        "영화명",
+        as_index=False
+    )["일관객"]
     .sum()
     .sort_values(
         "일관객",
@@ -314,15 +306,10 @@ top5_df = top5_df.sort_values(
 
 if len(top5_df) == 0:
 
-    st.warning(
-        "비교할 영화 데이터가 없습니다."
-    )
+    st.warning("비교할 영화 데이터가 없습니다.")
 
 else:
 
-    # --------------------------------------------------
-    # TOP 5 선 그래프
-    # --------------------------------------------------
     fig2 = px.line(
         top5_df,
         x="날짜",
@@ -356,7 +343,9 @@ else:
             title="일관객 (명)"
         ),
         legend=dict(
-            title="영화"
+            title="영화",
+            itemclick="toggle",
+            itemdoubleclick="toggleothers"
         ),
         margin=dict(
             l=20,
@@ -414,7 +403,7 @@ st.markdown(
         </h4>
 
         <p style="margin:0; color:#555;">
-            여기에 다섯 영화의 날짜별 관객 변화와 영화별 흥행 흐름을 비교한 내용을 한 문장으로 적어 주세요.
+            기간 전체의 관객 합계가 큰 영화들의 날짜별 흥행 흐름을 서로 비교할 수 있습니다.
         </p>
     </div>
     """,
@@ -442,7 +431,10 @@ daily_total = (
     df.dropna(
         subset=["날짜", "일관객"]
     )
-    .groupby("날짜", as_index=False)["일관객"]
+    .groupby(
+        "날짜",
+        as_index=False
+    )["일관객"]
     .sum()
     .sort_values("날짜")
 )
@@ -457,11 +449,14 @@ if len(daily_total) == 0:
 else:
 
     # --------------------------------------------------
-    # 가장 큰 날 TOP 3
+    # 관객이 가장 많았던 날짜 TOP 3
     # --------------------------------------------------
     top3_days = (
         daily_total
-        .nlargest(3, "일관객")
+        .nlargest(
+            3,
+            "일관객"
+        )
         .sort_values(
             "일관객",
             ascending=False
@@ -491,7 +486,7 @@ else:
 
 
     # --------------------------------------------------
-    # TOP 3 날짜 그래프 위에 표시
+    # TOP 3 날짜 표시
     # --------------------------------------------------
     for _, row in top3_days.iterrows():
 
@@ -533,6 +528,7 @@ else:
             b=20
         )
     )
+
 
     st.plotly_chart(
         fig3,
@@ -589,7 +585,7 @@ st.markdown(
         </h4>
 
         <p style="margin:0; color:#555;">
-            여기에 날짜별 전체 영화 관객 규모의 변화와 관객이 특히 많았던 시기를 한 문장으로 적어 주세요.
+            날짜별 전체 관객 규모의 변화를 확인하고 관객이 특히 많았던 날짜를 찾을 수 있습니다.
         </p>
     </div>
     """,
@@ -626,7 +622,7 @@ movie_total_all = (
 
 
 # --------------------------------------------------
-# 영화별 10위권에 든 날짜 수
+# 영화별 10위권 등장 일수
 # --------------------------------------------------
 movie_days = (
     df.dropna(
@@ -640,7 +636,6 @@ movie_days = (
 )
 
 
-# 날짜 열의 이름을 변경
 movie_days = movie_days.rename(
     columns={
         "날짜": "10위권_등장_일수"
@@ -649,7 +644,7 @@ movie_days = movie_days.rename(
 
 
 # --------------------------------------------------
-# 일관객 합계와 등장 일수를 합치기
+# 두 데이터를 합치기
 # --------------------------------------------------
 movie_summary = pd.merge(
     movie_total_all,
@@ -660,7 +655,7 @@ movie_summary = pd.merge(
 
 
 # --------------------------------------------------
-# 일관객 합계 TOP 10
+# TOP 10 영화
 # --------------------------------------------------
 top10_movies = (
     movie_summary
@@ -681,11 +676,8 @@ if len(top10_movies) == 0:
 
 else:
 
-    # --------------------------------------------------
-    # 그래프용 데이터
-    # --------------------------------------------------
-    # Plotly 가로 막대그래프에서는
-    # 작은 값부터 넣으면 큰 값이 위에 표시됨
+    # 작은 값부터 정렬
+    # → 가로 막대그래프에서 큰 값이 위에 표시됨
     chart_data = (
         top10_movies
         .sort_values(
@@ -715,7 +707,7 @@ else:
 
 
     # --------------------------------------------------
-    # 마우스를 올렸을 때 표시
+    # 마우스 오버
     # --------------------------------------------------
     fig4.update_traces(
         hovertemplate=(
@@ -727,9 +719,6 @@ else:
     )
 
 
-    # --------------------------------------------------
-    # 그래프 설정
-    # --------------------------------------------------
     fig4.update_layout(
         height=600,
         xaxis=dict(
@@ -737,7 +726,8 @@ else:
             tickformat=","
         ),
         yaxis=dict(
-            title=""
+            title="",
+            categoryorder="total ascending"
         ),
         margin=dict(
             l=20,
@@ -763,25 +753,21 @@ else:
 
     top10_display = top10_movies.copy()
 
-
     top10_display["일관객"] = (
         top10_display["일관객"]
         .map(lambda x: f"{x:,.0f}명")
     )
-
 
     top10_display["10위권_등장_일수"] = (
         top10_display["10위권_등장_일수"]
         .map(lambda x: f"{x}일")
     )
 
-
     top10_display.columns = [
         "영화명",
         "기간 일관객 합계",
         "10위권에 든 날수"
     ]
-
 
     st.dataframe(
         top10_display,
@@ -808,7 +794,7 @@ st.markdown(
         </h4>
 
         <p style="margin:0; color:#555;">
-            여기에 기간 전체에서 관객이 많았던 영화와 10위권에 오래 머문 영화의 특징을 한 문장으로 적어 주세요.
+            기간 전체에서 관객이 많았던 영화와 10위권에 오래 머문 영화를 비교할 수 있습니다.
         </p>
     </div>
     """,
@@ -817,17 +803,196 @@ st.markdown(
 
 
 # ==================================================
-# 그래프 5 - 앞으로 추가할 영역
+# 그래프 5
 # ==================================================
 st.divider()
 
-st.header("5️⃣ 다섯 번째 그래프")
+st.header("5️⃣ 월 × 요일별 일관객 합계 히트맵")
 
-st.info(
-    "여기에 앞으로 다섯 번째 그래프를 추가할 수 있습니다."
+st.write(
+    "날짜에서 월과 요일을 뽑아 "
+    "월별·요일별 일관객 합계를 히트맵으로 비교합니다."
 )
 
 
+# --------------------------------------------------
+# 히트맵용 데이터
+# --------------------------------------------------
+heatmap_df = df.dropna(
+    subset=["날짜", "일관객"]
+).copy()
+
+
+# --------------------------------------------------
+# 월 추출
+# --------------------------------------------------
+heatmap_df["월"] = heatmap_df["날짜"].dt.month
+
+
+# --------------------------------------------------
+# 요일 추출
+# 월요일 = 0
+# 일요일 = 6
+# --------------------------------------------------
+weekday_names = [
+    "월요일",
+    "화요일",
+    "수요일",
+    "목요일",
+    "금요일",
+    "토요일",
+    "일요일"
+]
+
+
+heatmap_df["요일번호"] = (
+    heatmap_df["날짜"].dt.weekday
+)
+
+
+heatmap_df["요일"] = (
+    heatmap_df["요일번호"]
+    .map(
+        lambda x: weekday_names[x]
+    )
+)
+
+
+# --------------------------------------------------
+# 월 × 요일별 일관객 합계
+# --------------------------------------------------
+heatmap_data = (
+    heatmap_df
+    .groupby(
+        ["월", "요일번호", "요일"],
+        as_index=False
+    )["일관객"]
+    .sum()
+)
+
+
+# --------------------------------------------------
+# 피벗 테이블
+# --------------------------------------------------
+heatmap_pivot = heatmap_data.pivot(
+    index="월",
+    columns="요일번호",
+    values="일관객"
+)
+
+
+# --------------------------------------------------
+# 1~12월 / 월요일~일요일 순서로 고정
+# --------------------------------------------------
+heatmap_pivot = heatmap_pivot.reindex(
+    index=range(1, 13),
+    columns=range(7)
+)
+
+
+# --------------------------------------------------
+# 요일 이름으로 변경
+# --------------------------------------------------
+heatmap_pivot.columns = weekday_names
+
+
+# --------------------------------------------------
+# 히트맵
+# --------------------------------------------------
+if heatmap_pivot.notna().sum().sum() == 0:
+
+    st.warning(
+        "월·요일별 관객 데이터를 계산할 수 없습니다."
+    )
+
+else:
+
+    fig5 = go.Figure(
+        data=go.Heatmap(
+            z=heatmap_pivot.values,
+            x=heatmap_pivot.columns,
+            y=[
+                f"{month}월"
+                for month in heatmap_pivot.index
+            ],
+            colorscale="YlOrRd",
+            colorbar=dict(
+                title="일관객 합계"
+            ),
+            hovertemplate=(
+                "월: %{y}<br>"
+                "요일: %{x}<br>"
+                "일관객 합계: %{z:,.0f}명"
+                "<extra></extra>"
+            ),
+            xgap=2,
+            ygap=2
+        )
+    )
+
+
+    fig5.update_layout(
+        title="월 × 요일별 일관객 합계",
+        height=600,
+        xaxis=dict(
+            title="요일",
+            categoryorder="array",
+            categoryarray=weekday_names
+        ),
+        yaxis=dict(
+            title="월",
+            autorange="reversed"
+        ),
+        margin=dict(
+            l=20,
+            r=20,
+            t=60,
+            b=20
+        )
+    )
+
+
+    st.plotly_chart(
+        fig5,
+        use_container_width=True
+    )
+
+
+    # --------------------------------------------------
+    # 히트맵 데이터 표
+    # --------------------------------------------------
+    st.markdown(
+        "#### 📌 월 × 요일별 일관객 합계"
+    )
+
+
+    heatmap_display = heatmap_pivot.copy()
+
+
+    heatmap_display.index = [
+        f"{month}월"
+        for month in heatmap_display.index
+    ]
+
+
+    heatmap_display = heatmap_display.map(
+        lambda x: (
+            f"{x:,.0f}명"
+            if pd.notna(x)
+            else "-"
+        )
+    )
+
+
+    st.dataframe(
+        heatmap_display,
+        use_container_width=True
+    )
+
+
+# --------------------------------------------------
+# 그래프 5 해석
+# --------------------------------------------------
 st.markdown(
     """
     <div style="
@@ -835,15 +1000,15 @@ st.markdown(
         margin-top:10px;
         margin-bottom:30px;
         border-radius:12px;
-        background-color:#E3F2FD;
-        border:1px solid #90CAF9;
+        background-color:#F3E5F5;
+        border:1px solid #CE93D8;
     ">
         <h4 style="margin:0 0 8px 0;">
             💡 이 그래프로 알 수 있는 것
         </h4>
 
         <p style="margin:0; color:#555;">
-            여기에 다섯 번째 그래프에서 알 수 있는 내용을 적어 주세요.
+            월별·요일별로 관객이 많이 몰리는 시기를 색의 진하기를 통해 한눈에 비교할 수 있습니다.
         </p>
     </div>
     """,
