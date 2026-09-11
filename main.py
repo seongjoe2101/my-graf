@@ -1,7 +1,4 @@
 
-
-
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -160,4 +157,696 @@ if len(movie_list) == 0:
     )
 
     st.stop()
+
+
+# --------------------------------------------------
+# 영화 선택
+# --------------------------------------------------
+selected_movie = st.selectbox(
+    "🎥 영화 선택",
+    movie_list
+)
+
+
+# --------------------------------------------------
+# 선택한 영화 데이터
+# --------------------------------------------------
+movie_df = df[
+    df["영화명"].astype(str) == selected_movie
+].copy()
+
+movie_df = movie_df.dropna(
+    subset=["날짜", "일관객"]
+)
+
+movie_df = movie_df.sort_values("날짜")
+
+
+if len(movie_df) == 0:
+
+    st.warning(
+        "선택한 영화의 날짜별 관객 데이터가 없습니다."
+    )
+
+else:
+
+    # --------------------------------------------------
+    # 선 그래프
+    # --------------------------------------------------
+    fig1 = px.line(
+        movie_df,
+        x="날짜",
+        y="일관객",
+        markers=True,
+        title=f"{selected_movie} - 날짜별 일관객 변화",
+        labels={
+            "날짜": "날짜",
+            "일관객": "일관객 (명)"
+        }
+    )
+
+    # 마우스를 올렸을 때 표시
+    fig1.update_traces(
+        hovertemplate=(
+            "날짜: %{x|%Y-%m-%d}<br>"
+            "일관객: %{y:,.0f}명"
+            "<extra></extra>"
+        )
+    )
+
+    fig1.update_layout(
+        height=500,
+        hovermode="x unified",
+        xaxis=dict(
+            tickformat="%Y-%m-%d"
+        ),
+        yaxis=dict(
+            tickformat=","
+        ),
+        margin=dict(
+            l=20,
+            r=20,
+            t=60,
+            b=20
+        )
+    )
+
+    st.plotly_chart(
+        fig1,
+        use_container_width=True
+    )
+
+
+# --------------------------------------------------
+# 그래프 1 해석
+# --------------------------------------------------
+st.markdown(
+    """
+    <div style="
+        padding:18px;
+        margin-top:10px;
+        margin-bottom:30px;
+        border-radius:12px;
+        background-color:#FFF8E1;
+        border:1px solid #FFD54F;
+    ">
+        <h4 style="margin:0 0 8px 0;">
+            💡 이 그래프로 알 수 있는 것
+        </h4>
+
+        <p style="margin:0; color:#555;">
+            여기에 이 그래프를 통해 알 수 있는 내용을 한 문장으로 적어 주세요.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ==================================================
+# 그래프 2
+# ==================================================
+st.divider()
+
+st.header("2️⃣ 일관객 합계가 가장 큰 영화 5편 비교")
+
+st.write(
+    "이 기간 동안의 일관객 합계가 가장 큰 5편을 골라 "
+    "날짜별 일관객 변화를 한 그래프에서 비교합니다."
+)
+
+
+# --------------------------------------------------
+# 영화별 일관객 합계
+# --------------------------------------------------
+movie_total = (
+    df.dropna(
+        subset=["영화명", "일관객"]
+    )
+    .groupby("영화명", as_index=False)["일관객"]
+    .sum()
+    .sort_values(
+        "일관객",
+        ascending=False
+    )
+    .head(5)
+)
+
+
+top5_movies = movie_total["영화명"].tolist()
+
+
+# --------------------------------------------------
+# TOP 5 데이터
+# --------------------------------------------------
+top5_df = df[
+    df["영화명"].isin(top5_movies)
+].copy()
+
+top5_df = top5_df.dropna(
+    subset=["날짜", "일관객"]
+)
+
+top5_df = top5_df.sort_values(
+    ["날짜", "영화명"]
+)
+
+
+if len(top5_df) == 0:
+
+    st.warning(
+        "비교할 영화 데이터가 없습니다."
+    )
+
+else:
+
+    # --------------------------------------------------
+    # TOP 5 선 그래프
+    # --------------------------------------------------
+    fig2 = px.line(
+        top5_df,
+        x="날짜",
+        y="일관객",
+        color="영화명",
+        markers=True,
+        title="일관객 합계 TOP 5 영화의 날짜별 일관객 변화",
+        labels={
+            "날짜": "날짜",
+            "일관객": "일관객 (명)",
+            "영화명": "영화"
+        }
+    )
+
+    fig2.update_traces(
+        hovertemplate=(
+            "날짜: %{x|%Y-%m-%d}<br>"
+            "일관객: %{y:,.0f}명"
+            "<extra>%{fullData.name}</extra>"
+        )
+    )
+
+    fig2.update_layout(
+        height=600,
+        hovermode="x unified",
+        xaxis=dict(
+            tickformat="%Y-%m-%d"
+        ),
+        yaxis=dict(
+            tickformat=",",
+            title="일관객 (명)"
+        ),
+        legend=dict(
+            title="영화"
+        ),
+        margin=dict(
+            l=20,
+            r=20,
+            t=60,
+            b=20
+        )
+    )
+
+    st.plotly_chart(
+        fig2,
+        use_container_width=True
+    )
+
+
+# --------------------------------------------------
+# TOP 5 표
+# --------------------------------------------------
+st.markdown("#### 📌 그래프에 사용된 영화")
+
+display_total = movie_total.copy()
+
+display_total["일관객"] = (
+    display_total["일관객"]
+    .map(lambda x: f"{x:,.0f}명")
+)
+
+display_total.columns = [
+    "영화명",
+    "기간 일관객 합계"
+]
+
+st.dataframe(
+    display_total,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# --------------------------------------------------
+# 그래프 2 해석
+# --------------------------------------------------
+st.markdown(
+    """
+    <div style="
+        padding:18px;
+        margin-top:10px;
+        margin-bottom:30px;
+        border-radius:12px;
+        background-color:#E8F5E9;
+        border:1px solid #81C784;
+    ">
+        <h4 style="margin:0 0 8px 0;">
+            💡 이 그래프로 알 수 있는 것
+        </h4>
+
+        <p style="margin:0; color:#555;">
+            여기에 다섯 영화의 날짜별 관객 변화와 영화별 흥행 흐름을 비교한 내용을 한 문장으로 적어 주세요.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ==================================================
+# 그래프 3
+# ==================================================
+st.divider()
+
+st.header("3️⃣ 날짜별 전체 10위권 일관객 합계")
+
+st.write(
+    "각 날짜마다 박스오피스 10위권 영화의 일관객을 모두 더해 "
+    "그날 전체 관객 규모가 어떻게 변했는지 보여 줍니다."
+)
+
+
+# --------------------------------------------------
+# 날짜별 일관객 합계
+# --------------------------------------------------
+daily_total = (
+    df.dropna(
+        subset=["날짜", "일관객"]
+    )
+    .groupby("날짜", as_index=False)["일관객"]
+    .sum()
+    .sort_values("날짜")
+)
+
+
+if len(daily_total) == 0:
+
+    st.warning(
+        "날짜별 관객 데이터를 계산할 수 없습니다."
+    )
+
+else:
+
+    # --------------------------------------------------
+    # 가장 큰 날 TOP 3
+    # --------------------------------------------------
+    top3_days = (
+        daily_total
+        .nlargest(3, "일관객")
+        .sort_values(
+            "일관객",
+            ascending=False
+        )
+    )
+
+
+    # --------------------------------------------------
+    # 영역 그래프
+    # --------------------------------------------------
+    fig3 = go.Figure()
+
+    fig3.add_trace(
+        go.Scatter(
+            x=daily_total["날짜"],
+            y=daily_total["일관객"],
+            mode="lines",
+            name="10위권 일관객 합계",
+            fill="tozeroy",
+            hovertemplate=(
+                "날짜: %{x|%Y-%m-%d}<br>"
+                "10위권 일관객 합계: %{y:,.0f}명"
+                "<extra></extra>"
+            )
+        )
+    )
+
+
+    # --------------------------------------------------
+    # TOP 3 날짜 그래프 위에 표시
+    # --------------------------------------------------
+    for _, row in top3_days.iterrows():
+
+        fig3.add_annotation(
+            x=row["날짜"],
+            y=row["일관객"],
+            text=(
+                f"{row['날짜'].strftime('%Y-%m-%d')}"
+                f"<br>{row['일관객']:,.0f}명"
+            ),
+            showarrow=True,
+            arrowhead=2,
+            ax=0,
+            ay=-55,
+            bgcolor="white",
+            bordercolor="#888",
+            borderwidth=1,
+            borderpad=5,
+            font=dict(size=12)
+        )
+
+
+    fig3.update_layout(
+        title="날짜별 박스오피스 10위권 일관객 합계",
+        height=550,
+        hovermode="x unified",
+        xaxis=dict(
+            title="날짜",
+            tickformat="%Y-%m-%d"
+        ),
+        yaxis=dict(
+            title="10위권 일관객 합계 (명)",
+            tickformat=","
+        ),
+        margin=dict(
+            l=20,
+            r=20,
+            t=80,
+            b=20
+        )
+    )
+
+    st.plotly_chart(
+        fig3,
+        use_container_width=True
+    )
+
+
+    # --------------------------------------------------
+    # TOP 3 표
+    # --------------------------------------------------
+    st.markdown(
+        "#### 📌 일관객 합계가 가장 컸던 날 TOP 3"
+    )
+
+    top3_display = top3_days.copy()
+
+    top3_display["날짜"] = (
+        top3_display["날짜"]
+        .dt.strftime("%Y-%m-%d")
+    )
+
+    top3_display["일관객"] = (
+        top3_display["일관객"]
+        .map(lambda x: f"{x:,.0f}명")
+    )
+
+    top3_display.columns = [
+        "날짜",
+        "10위권 일관객 합계"
+    ]
+
+    st.dataframe(
+        top3_display,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# --------------------------------------------------
+# 그래프 3 해석
+# --------------------------------------------------
+st.markdown(
+    """
+    <div style="
+        padding:18px;
+        margin-top:10px;
+        margin-bottom:30px;
+        border-radius:12px;
+        background-color:#FCE4EC;
+        border:1px solid #F48FB1;
+    ">
+        <h4 style="margin:0 0 8px 0;">
+            💡 이 그래프로 알 수 있는 것
+        </h4>
+
+        <p style="margin:0; color:#555;">
+            여기에 날짜별 전체 영화 관객 규모의 변화와 관객이 특히 많았던 시기를 한 문장으로 적어 주세요.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ==================================================
+# 그래프 4
+# ==================================================
+st.divider()
+
+st.header("4️⃣ 영화별 기간 일관객 TOP 10")
+
+st.write(
+    "이 기간 동안 영화별 일관객을 모두 더해 "
+    "관객이 가장 많았던 영화 10편을 비교합니다."
+)
+
+
+# --------------------------------------------------
+# 영화별 일관객 합계
+# --------------------------------------------------
+movie_total_all = (
+    df.dropna(
+        subset=["영화명", "일관객"]
+    )
+    .groupby(
+        "영화명",
+        as_index=False
+    )["일관객"]
+    .sum()
+)
+
+
+# --------------------------------------------------
+# 영화별 10위권에 든 날짜 수
+# --------------------------------------------------
+movie_days = (
+    df.dropna(
+        subset=["영화명", "날짜"]
+    )
+    .groupby(
+        "영화명",
+        as_index=False
+    )["날짜"]
+    .nunique()
+)
+
+
+# 날짜 열의 이름을 변경
+movie_days = movie_days.rename(
+    columns={
+        "날짜": "10위권_등장_일수"
+    }
+)
+
+
+# --------------------------------------------------
+# 일관객 합계와 등장 일수를 합치기
+# --------------------------------------------------
+movie_summary = pd.merge(
+    movie_total_all,
+    movie_days,
+    on="영화명",
+    how="left"
+)
+
+
+# --------------------------------------------------
+# 일관객 합계 TOP 10
+# --------------------------------------------------
+top10_movies = (
+    movie_summary
+    .sort_values(
+        "일관객",
+        ascending=False
+    )
+    .head(10)
+    .copy()
+)
+
+
+if len(top10_movies) == 0:
+
+    st.warning(
+        "영화별 관객 데이터를 계산할 수 없습니다."
+    )
+
+else:
+
+    # --------------------------------------------------
+    # 그래프용 데이터
+    # --------------------------------------------------
+    # Plotly 가로 막대그래프에서는
+    # 작은 값부터 넣으면 큰 값이 위에 표시됨
+    chart_data = (
+        top10_movies
+        .sort_values(
+            "일관객",
+            ascending=True
+        )
+    )
+
+
+    # --------------------------------------------------
+    # 가로 막대그래프
+    # --------------------------------------------------
+    fig4 = px.bar(
+        chart_data,
+        x="일관객",
+        y="영화명",
+        orientation="h",
+        title="영화별 기간 일관객 TOP 10",
+        labels={
+            "일관객": "기간 일관객 합계 (명)",
+            "영화명": "영화"
+        },
+        custom_data=[
+            "10위권_등장_일수"
+        ]
+    )
+
+
+    # --------------------------------------------------
+    # 마우스를 올렸을 때 표시
+    # --------------------------------------------------
+    fig4.update_traces(
+        hovertemplate=(
+            "영화: %{y}<br>"
+            "기간 일관객 합계: %{x:,.0f}명<br>"
+            "10위권에 든 날수: %{customdata[0]}일"
+            "<extra></extra>"
+        )
+    )
+
+
+    # --------------------------------------------------
+    # 그래프 설정
+    # --------------------------------------------------
+    fig4.update_layout(
+        height=600,
+        xaxis=dict(
+            title="기간 일관객 합계 (명)",
+            tickformat=","
+        ),
+        yaxis=dict(
+            title=""
+        ),
+        margin=dict(
+            l=20,
+            r=20,
+            t=60,
+            b=20
+        )
+    )
+
+
+    st.plotly_chart(
+        fig4,
+        use_container_width=True
+    )
+
+
+    # --------------------------------------------------
+    # TOP 10 상세 정보
+    # --------------------------------------------------
+    st.markdown(
+        "#### 📌 TOP 10 영화 상세 정보"
+    )
+
+    top10_display = top10_movies.copy()
+
+
+    top10_display["일관객"] = (
+        top10_display["일관객"]
+        .map(lambda x: f"{x:,.0f}명")
+    )
+
+
+    top10_display["10위권_등장_일수"] = (
+        top10_display["10위권_등장_일수"]
+        .map(lambda x: f"{x}일")
+    )
+
+
+    top10_display.columns = [
+        "영화명",
+        "기간 일관객 합계",
+        "10위권에 든 날수"
+    ]
+
+
+    st.dataframe(
+        top10_display,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# --------------------------------------------------
+# 그래프 4 해석
+# --------------------------------------------------
+st.markdown(
+    """
+    <div style="
+        padding:18px;
+        margin-top:10px;
+        margin-bottom:30px;
+        border-radius:12px;
+        background-color:#FFF3E0;
+        border:1px solid #FFB74D;
+    ">
+        <h4 style="margin:0 0 8px 0;">
+            💡 이 그래프로 알 수 있는 것
+        </h4>
+
+        <p style="margin:0; color:#555;">
+            여기에 기간 전체에서 관객이 많았던 영화와 10위권에 오래 머문 영화의 특징을 한 문장으로 적어 주세요.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ==================================================
+# 그래프 5 - 앞으로 추가할 영역
+# ==================================================
+st.divider()
+
+st.header("5️⃣ 다섯 번째 그래프")
+
+st.info(
+    "여기에 앞으로 다섯 번째 그래프를 추가할 수 있습니다."
+)
+
+
+st.markdown(
+    """
+    <div style="
+        padding:18px;
+        margin-top:10px;
+        margin-bottom:30px;
+        border-radius:12px;
+        background-color:#E3F2FD;
+        border:1px solid #90CAF9;
+    ">
+        <h4 style="margin:0 0 8px 0;">
+            💡 이 그래프로 알 수 있는 것
+        </h4>
+
+        <p style="margin:0; color:#555;">
+            여기에 다섯 번째 그래프에서 알 수 있는 내용을 적어 주세요.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
